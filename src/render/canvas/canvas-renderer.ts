@@ -4,7 +4,7 @@ import {ElementContainer, FLAGS} from '../../dom/element-container';
 import {BORDER_STYLE} from '../../css/property-descriptors/border-style';
 import {CSSParsedDeclaration} from '../../css';
 import {TextContainer} from '../../dom/text-container';
-import {Path, transformPath} from '../path';
+import {Path, transformPath, reversePath } from '../path';
 import {BACKGROUND_CLIP} from '../../css/property-descriptors/background-clip';
 import {BoundCurves, calculateBorderBoxPath, calculateContentBoxPath, calculatePaddingBoxPath} from '../bound-curves';
 import {BezierCurve, isBezierCurve} from '../bezier-curve';
@@ -523,12 +523,15 @@ export class CanvasRenderer extends Renderer {
 
     mask(paths: Path[]): void {
         this.ctx.beginPath();
+        this.ctx.save();
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
         this.ctx.moveTo(0, 0);
         this.ctx.lineTo(this.canvas.width, 0);
         this.ctx.lineTo(this.canvas.width, this.canvas.height);
         this.ctx.lineTo(0, this.canvas.height);
         this.ctx.lineTo(0, 0);
-        this.formatPath(paths.slice(0).reverse());
+        this.ctx.restore();
+        this.formatPath(reversePath(paths));
         this.ctx.closePath();
     }
 
@@ -720,13 +723,12 @@ export class CanvasRenderer extends Renderer {
             await this.renderBackgroundImage(paint.container);
 
             this.ctx.restore();
-
+            const borderBoxArea = calculateBorderBoxPath(paint.curves);
             styles.boxShadow
                 .slice(0)
                 .reverse()
                 .forEach((shadow) => {
                     this.ctx.save();
-                    const borderBoxArea = calculateBorderBoxPath(paint.curves);
                     const maskOffset = shadow.inset ? 0 : MASK_OFFSET;
                     const shadowPaintingArea = transformPath(
                         borderBoxArea,
